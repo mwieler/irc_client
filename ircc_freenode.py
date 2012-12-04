@@ -10,7 +10,6 @@ import threading
 import pdb
 import time
 
-
 # rather than if use dict. to turn user-supplied command into IRC command
 
 SERVER = "irc.freenode.net"
@@ -28,31 +27,42 @@ def read(sock): #listens for and prints out the received message
         msg = sock.recv(1024)
         if msg:
             print msg #not sure why the quotes are required
+            msgtuple = (msg,'server')
+            (validmsg, (prefix,command,args,trailer),errormsg, source) = parse_msg(*msgtuple)
+            if command == 'PING':
+                sock.sendall('PONG '+trailer)
             #print 'Server message was parsed as ',parse_servermsg(msg)
 
-def parse_usermsg(msg): #returns (validmsgflag, (prefix,command,args,trailer),errormsg)
-    validmsg = False #better way to construct valid-message checking?
-    if msg[0] == '/':
-       user_cmd, args, trailer = msg[1:].split(' ',2)
-       return (True,(None,IRC_CMDS[user_cmd],args,trailer), None)    
-    else:
-      return (False,None,"Usage: /command arg trailer")
-
-def parsed_to_irc(validmsg,(prefix,IRC_command,args,trailer),errormsg):
-    if validmsg:
-        return IRC_command+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
-    if not  validmsg:
-        return errormsg
-
-def parse_servermsg(msg):
-    if msg[0] == ':':
+def parse_msg(msg,source): #returns (validmsg, (prefix,command,args,trailer),errormsg, source)
+    #validmsg = False #better way to construct valid-message checking?
+    if msg[0] == '/': #user command
+       user_cmd, args_and_trailer = msg[1:].split(' ',1)
+       args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
+       args = args.strip()
+       #args = args.split(' ') #Q: will whitespace get in the way?  
+       #args = ' '.join(args) #joins the elements of list in 'args' with spaces
+       return (True,(None,IRC_CMDS[user_cmd], args, trailer), None, source)    
+    elif msg[0] == ':':
         prefix, not_prefix = msg[1:].split(' ',1) #splits message into pre-space and post-space
+        command_and_args, trailer = not_prefix.split(':',1)
+        command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
+        args = args.rstrip() #remove trailing whitespace
+        return (True,(prefix, command, args, trailer), None, source)
     else:
-        prefix = None
-        not_prefix = msg   
-    command_and_args, trailer = not_prefix.split(':',1)
-    command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
-    return prefix, command, args, trailer
+       return (False,None,"Sorry, parse_msg couldn't handle the message")
+
+#DEBUGGING STATEMENTS
+print parse_msg('/m testmatt testmsg','user')
+assert parse_msg('/m testmatt testmsg','user') == (True,(None,'PRIVMSG','testmatt','testmsg'),None,'user')
+
+print parse_msg(':rajaniemi.freenode.net 433 * mattwieler :Nickname is already in use.','server')
+assert parse_msg(':rajaniemi.freenode.net 433 * mattwieler :Nickname is already in use.','server')
+
+def parsed_to_irc(validmsg,(prefix,IRC_command,args,trailer),errormsg, source):
+    if validmsg:
+        return (True,IRC_command+" "+args+" :"+trailer+"\n",None) #the \n is necessary for the IRC server
+    if not validmsg: #if not a valid 
+        return (False,None,"Usage: /command arg trailer2")
 
 #debugging
 # a = parse_servermsg(':rajaniemi.freenode.net 433 * mattwieler :Nickname is already in use.')
@@ -61,10 +71,14 @@ def parse_servermsg(msg):
 def write(sock): #blocks on raw_msg, returns any msg from user
     while True:
         msg = raw_input("What to send to server?")
-        parsed_msg = parse_usermsg(msg)
-        IRC_msg = parsed_to_irc(*parsed_msg)
-        print "Sending",IRC_msg
-        sock.sendall(IRC_msg)
+        msgtuple = (msg,'user') #(message,source)
+        parsed_msg = parse_msg(*msgtuple)
+        validmsg,IRC_msg,errormsg = parsed_to_irc(*parsed_msg)
+        if validmsg:
+            print "Sending",IRC_msg
+            sock.sendall(IRC_msg)
+        else:
+            print errormsg
 
 read_thread = threading.Thread(target=read, args=(sock,)) #starts read thread by passing
 # read function and its arguments
@@ -75,8 +89,8 @@ def main():
     print "2"
     print "Connecting to",SERVER,"Port",PORT,"as",NICK
     sock.connect((SERVER,PORT))
-    print "Waiting 1 second..."
-    time.sleep(1)
+    print "Waiting 3 seconds..." #this should only be sent once the server replies with stuff
+    time.sleep(3)
     print "Sending nickname request to server..."
     sock.send("NICK "+NICK+"\nUSER "+NICK+" 0 * "+NICK+"\n")
     read_thread.start()
