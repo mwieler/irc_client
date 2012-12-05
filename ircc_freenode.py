@@ -2,6 +2,9 @@
 # usage: nc 127.0.0.1 4567
 
 # To Do:
+# 1. Trailers are OPTIONAL
+
+
 # 1. Add ability to join a channel.
 # 2. Add 'bot-like' ability to generate responses.  Perhaps they mashup literature? or google news articles?    
 # 3. messages seem to end with "\n"
@@ -35,7 +38,7 @@ class message:
         #pdb.set_trace()
         if self.original_msg[0] != '/':
             self.error_attributes = (False, "string must begin with a '/'")
-        elif len(self.original_msg.split(' ')) < 3:
+        elif len(self.original_msg.split(' ')) < 2:
             self.error_attributes = (False, "usage: /command argument trailer")
         elif not IRC_CMDS.get(self.original_msg[1:].split(' ')[0],None): #returns None if user_cmd key not found in IRC_CMDS dict
             self.error_attributes = (False,"User command not recognized")
@@ -45,7 +48,11 @@ class message:
     def parse_msg(self): #returns ((prefix,command,args,trailer),(parseable_msg,why_unparseable)
         if self.original_msg[0] == '/' and self.source == 'user' and self.error_attributes[0]: #/ indicates a user command
             user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
-            args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
+            #pdb.set_trace()
+            if len(args_and_trailer.split(' ')) > 1:
+                args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
+            elif len(args_and_trailer.split(' ')) == 1:
+                args, trailer = args_and_trailer, '' #must be '', can't be None, bc later trailer is concatenated
             args = args.strip()
             self.parsed_msg = (None, user_cmd, args, trailer)
     
