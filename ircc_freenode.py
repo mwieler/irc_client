@@ -28,16 +28,26 @@ class message:
         self.original_msg = msg
         self.source = source
         self.parsed_msg = None
-        self.error_attributes = (False,"Message has not yet been parsed by parse_message")
+        self.error_attributes = (None,"Message has not yet been parsed by parse_message")
         self.IRC_formatted_msg = None
-                        
+    
+    def is_msg_in_expected_structure(self):
+        #pdb.set_trace()
+        if self.original_msg[0] != '/':
+            self.error_attributes = (False, "string must begin with a '/'")
+        elif len(self.original_msg.split(' ')) < 3:
+            self.error_attributes = (False, "usage: /command argument trailer")
+        elif not IRC_CMDS.get(self.original_msg[1:].split(' ')[0],None): #returns None if user_cmd key not found in IRC_CMDS dict
+            self.error_attributes = (False,"User command not recognized")
+        else:
+            self.error_attributes = (True, None)
+
     def parse_msg(self): #returns ((prefix,command,args,trailer),(parseable_msg,why_unparseable)
-        if self.original_msg[0] == '/' and self.source == 'user': #/ indicates a user command
-           user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
-           args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
-           args = args.strip()
-           self.parsed_msg = (None, user_cmd, args, trailer)
-           self.error_attributes = (True,None)
+        if self.original_msg[0] == '/' and self.source == 'user' and self.error_attributes[0]: #/ indicates a user command
+            user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
+            args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
+            args = args.strip()
+            self.parsed_msg = (None, user_cmd, args, trailer)
     
         elif self.source == 'server':
             if self.original_msg[0] == ':': 
@@ -56,26 +66,23 @@ class message:
             self.error_attributes = (True, None)
         else:
            self.parsed_msg = None
-           self.error_attributes = (False, "Sorry, parse_msg couldn't handle the message")
+           #self.error_attributes = (False, "Sorry, parse_msg couldn't handle the message")
+           #pdb.set_trace()
 
     def format_as_IRC(self): #check message is valid prior to running
         #pdb.set_trace()
         (prefix, user_cmd, args, trailer) = self.parsed_msg
-        
-        if not IRC_CMDS[user_cmd]:
-            print "Sorry, your command was not recognized"
-        else:
-            if prefix:
-                self.IRC_formatted_msg = ":"+prefix+" "+IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
-            if not prefix:
-                self.IRC_formatted_msg = IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
+        if prefix:
+            self.IRC_formatted_msg = ":"+prefix+" "+IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
+        if not prefix:
+            self.IRC_formatted_msg = IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
 
 
 def read(sock): #listens for and prints out the received message
     while True:
         msg = sock.recv(1024)
         #msg_object = message((msg,'server'))
-        print msg
+        print msg #for now, all the client does with servers messages is print them: eventually, it should make sense of them, too, and pong the server
         #pdb.set_trace()
         #msg_object.parse_msg() #we should be able to combine these two lines, or automatically call them
         #msg_object.format_as_IRC() #we should be able to combine these two lines, or automatically call them
@@ -91,6 +98,7 @@ def write(sock): #blocks on raw_msg, returns any msg from user
         msg = raw_input("What to send to server?")
         msgtuple = (msg,'user') #(message,source)
         msg_object2 = message(msgtuple)
+        msg_object2.is_msg_in_expected_structure()
         msg_object2.parse_msg() #these two fcns should be run automatically?
         #these two fcns should be run automatically?
         #pdb.set_trace()
