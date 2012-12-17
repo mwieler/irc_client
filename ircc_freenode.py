@@ -26,6 +26,8 @@ SERVER = "irc.freenode.net"
 PORT = 6667
 CHANNEL = '#HACKERSCHOOL'
 NICK = 'testmatt'
+FONTSIZE = 18
+
 
 IRC_CMDS = {'m':'PRIVMSG','n':'NICK', 'j':'JOIN','q':'QUIT','o':'NOTICE'}
 
@@ -33,8 +35,8 @@ def print_dict():
     print "User command   |IRC Command\n-----------------------------"
     for k,v in IRC_CMDS.items():
         print k,"\t\t",v
-            
-def makenew_pyg_textblock(msg,fontsize):
+
+def makenew_pyg_textsurface(msg,fontsize):
     fontobject = pygame.font.Font(None,fontsize) #makes a font object
     textsurface = fontobject.render(msg,1,(255,255,255))
     return textsurface
@@ -139,6 +141,7 @@ def setup_sock():
 
 def main(): 
     # Create 'sock', a socket object
+    pyg_textsurfaces = []
     user_message = ""
     server_message = ""
     sock = setup_sock()
@@ -150,15 +153,15 @@ def main():
     rect = pygame.draw.rect(screen,(255,155,55),(0,0,10,10)) #initializes rectangle (horiz,vert,width,heigh)
     rect.bottomleft = (0,550) #moves bottom-left corner of rectangle to new coordinate (horiz, vert)
 
-    rect2 = pygame.draw.rect(screen,(153,33,255),(0,0,10,10))
-    rect2.bottomleft = (0,90)
+    #rect2 = pygame.draw.rect(screen,(153,33,255),(0,0,10,10))
+    #rect2.bottomleft = (0,90)
 
     while True:
         for event in pygame.event.get():
             if event.type == KEYDOWN: #if the user depresses a key
                 if event.key == K_RETURN: #if the enter key is depressed (event.key == 13) 
                     write(sock,user_message)
-                    user_message = '' #this line seems to not work, not sure why not
+                    user_message = '' #this line leaves a one-character artifact, not sure why
 
                 if event.key == K_BACKSPACE:
                     user_message = user_message[:-1]
@@ -169,23 +172,22 @@ def main():
         
         screen.fill((0,0,0))
         
-        textsurface = makenew_pyg_textblock(user_message,72)
-        textsurface2 = makenew_pyg_textblock(server_message,24) #necessary to initialize the surface object
-        
+        unsent_user_message = makenew_pyg_textsurface(user_message,36)
+                
         if readable:
-            #server_message2 = server_message
-            #fontpixelheight = servermsg_fontobject2.get_linesize()
-            # rect2.move(0,-fontpixelheight*100)
             server_message = sock.recv(1024)
-            textsurface2 = makenew_pyg_textblock(server_message,24)
+            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message,24))
 
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
-        rect2 = pygame.draw.rect(screen,(153,33,255),rect2) #this re-draws the rectangle (now that it's been moved)
 
-        screen.blit(textsurface,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
+        screen.blit(unsent_user_message,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
         
-        if textsurface2:
-            screen.blit(textsurface2,rect2)
+        offset = 90
+        for block in pyg_textsurfaces[-10:]:
+            offset += FONTSIZE
+            screen.blit(block,(0,offset))
+
+        screen.blit(unsent_user_message,(0,540))
 
         pygame.display.flip() #updates display
 
