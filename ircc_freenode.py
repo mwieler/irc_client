@@ -187,7 +187,6 @@ def main():
         pygame.display.flip() #updates display
 
 
-
 if __name__ == '__main__':
     pygame.init()
     main()
