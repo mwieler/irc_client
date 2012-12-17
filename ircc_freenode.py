@@ -33,6 +33,11 @@ def print_dict():
     print "User command   |IRC Command\n-----------------------------"
     for k,v in IRC_CMDS.items():
         print k,"\t\t",v
+            
+def makenew_pyg_textblock(msg,fontsize):
+    fontobject = pygame.font.Font(None,fontsize) #makes a font object
+    textsurface = fontobject.render(msg,1,(255,255,255))
+    return textsurface
 
 class Message:
     def __init__(self,(msg,source)): #remember init takes arguments, NOT the class
@@ -135,7 +140,7 @@ def setup_sock():
 def main(): 
     # Create 'sock', a socket object
     user_message = ""
-    server_message = ''
+    server_message = ""
     sock = setup_sock()
 
     #set up pygame interface
@@ -164,28 +169,25 @@ def main():
         
         screen.fill((0,0,0))
         
-        usermsg_fontobject = pygame.font.Font(None,72) #makes a font object
-        textsurface = usermsg_fontobject.render(user_message,1,(255,255,255)) #not sure exactly
-
-        servermsg_fontobject2 = pygame.font.Font(None, 24)
-        textsurface2 = servermsg_fontobject2.render(server_message,1,(255,255,255)) #not sure exactly
-
+        textsurface = makenew_pyg_textblock(user_message,72)
+        textsurface2 = makenew_pyg_textblock(server_message,24) #necessary to initialize the surface object
+        
         if readable:
             #server_message2 = server_message
-            fontpixelheight = servermsg_fontobject2.get_linesize()
-            rect2.move(0,-fontpixelheight*100)
-            server_message = "\n"+sock.recv(1024)
-            textsurface2 = servermsg_fontobject2.render(server_message,1,(255,255,255))
+            #fontpixelheight = servermsg_fontobject2.get_linesize()
+            # rect2.move(0,-fontpixelheight*100)
+            server_message = sock.recv(1024)
+            textsurface2 = makenew_pyg_textblock(server_message,24)
 
-        #re-draw the rectangle
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
         rect2 = pygame.draw.rect(screen,(153,33,255),rect2) #this re-draws the rectangle (now that it's been moved)
 
         screen.blit(textsurface,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
-        screen.blit(textsurface2,rect2)
+        
+        if textsurface2:
+            screen.blit(textsurface2,rect2)
 
         pygame.display.flip() #updates display
-
 
 if __name__ == '__main__':
     pygame.init()
