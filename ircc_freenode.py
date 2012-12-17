@@ -26,7 +26,7 @@ SERVER = "irc.freenode.net"
 PORT = 6667
 CHANNEL = '#HACKERSCHOOL'
 NICK = 'testmatt'
-FONTSIZE = 18
+FONTSIZE = 24
 
 
 IRC_CMDS = {'m':'PRIVMSG','n':'NICK', 'j':'JOIN','q':'QUIT','o':'NOTICE'}
@@ -161,6 +161,8 @@ def main():
             if event.type == KEYDOWN: #if the user depresses a key
                 if event.key == K_RETURN: #if the enter key is depressed (event.key == 13) 
                     write(sock,user_message)
+                    #pdb.set_trace()
+                    pyg_textsurfaces.append(makenew_pyg_textsurface(user_message,FONTSIZE))
                     user_message = '' #this line leaves a one-character artifact, not sure why
 
                 if event.key == K_BACKSPACE:
@@ -170,19 +172,19 @@ def main():
         
         readable, writeable, error = select.select([sock], [sock], [sock], 0)
         
-        screen.fill((0,0,0))
+        screen.fill((0,0,0)) #puts in a black background, so that you only see the most recently drawn objects
         
-        unsent_user_message = makenew_pyg_textsurface(user_message,36)
+        unsent_user_message = makenew_pyg_textsurface(user_message,FONTSIZE)
                 
         if readable:
             server_message = sock.recv(1024)
-            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message,24))
+            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message,FONTSIZE))
 
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
         screen.blit(unsent_user_message,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
         
-        offset = 90
+        offset = 10
         for block in pyg_textsurfaces[-10:]:
             offset += FONTSIZE
             screen.blit(block,(0,offset))
