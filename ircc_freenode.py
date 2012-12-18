@@ -67,8 +67,6 @@ class Message:
                 self.args = args
                 self.trailer = trailer
 
-
-
         elif self.source == 'server':
             if self.original_msg[0] == ':': 
                 prefix, not_prefix = self.original_msg[1:].split(' ',1) #splits message into pre first-space and post first-space
