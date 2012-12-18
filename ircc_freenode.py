@@ -50,7 +50,6 @@ class Message:
         self.IRC_formatted_msg = None
     
     def is_msg_in_expected_structure(self):
-        #pdb.set_trace()
         if self.original_msg[0] != '/':
             self.valid_msgtuple = (False, "commands must begin with a '/'")
         elif len(self.original_msg.split(' ')) < 2:
@@ -63,7 +62,6 @@ class Message:
     def parse_msg(self): #returns ((prefix,command,args,trailer),(parseable_msg,why_unparseable)
         if self.original_msg[0] == '/' and self.source == 'user' and self.valid_msgtuple[0]: #/ indicates a user command
             user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
-            #pdb.set_trace()
             if len(args_and_trailer.split(' ')) > 1:
                 args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
             elif len(args_and_trailer.split(' ')) == 1:
@@ -81,7 +79,6 @@ class Message:
             print "parsed_msg: ",msg_object.parsed_msg
             print "\nParsed message:\n", msg_object.parsed_msg #placeholder. eventually display properly formatted message
             print "command and args\n",command_and_args,"\nend of command and args" #debug stmt
-            #pdb.set_trace() #debug statement
             command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
             args = args.rstrip() #remove trailing whitespace. Should args be a space-delimited string or a list?
             self.parsed_msg = (prefix, command, args, trailer)
@@ -89,10 +86,8 @@ class Message:
         else:
            self.parsed_msg = None
            #self.valid_msgtuple = (False, "Sorry, parse_msg couldn't handle the message")
-           #pdb.set_trace()
 
     def format_as_IRC(self): #check message is valid prior to running
-        #pdb.set_trace()
         (prefix, user_cmd, args, trailer) = self.parsed_msg
         if prefix:
             self.IRC_formatted_msg = ":"+prefix+" "+IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
@@ -105,7 +100,6 @@ def read(sock): #listens for and prints out the received message
         msg = sock.recv(1024)
         #msg_object = Message((msg,'server'))
         print msg #for now, all the client does with servers messages is print them: eventually, it should make sense of them, too, and pong the server
-        #pdb.set_trace()
         #msg_object.parse_msg() #we should be able to combine these two lines, or automatically call them
         #msg_object.format_as_IRC() #we should be able to combine these two lines, or automatically call them
         # parseable_msg, why_unparseable = msg_object.valid_msgtuple
@@ -115,17 +109,19 @@ def read(sock): #listens for and prints out the received message
         # if not parseable_msg:
         #     print msg_object.original_msg, "was not parseable. Reason:\n", why_unparseable
 
-def write(sock,msg): #blocks on raw_msg, returns any msg from user
+def parse(msg): #blocks on raw_msg, returns any msg from user
     msgtuple = (msg,'user') #(message,source)
     user_msg = Message(msgtuple)
     user_msg.is_msg_in_expected_structure()
     user_msg.parse_msg()
     if user_msg.valid_msgtuple[0]: #if the message has been parsed successfully...
-        user_msg.format_as_IRC() #format it as an IRC message....
-        print "Sending",user_msg.IRC_formatted_msg #and send it
-        sock.sendall(user_msg.IRC_formatted_msg)
+        return user_msg #hope this returns a "Message" object, as I've defined it
     else:
-        print user_msg.valid_msgtuple[1] #make this clearer
+        print user_msg.valid_msgtuple[1] #prints an error message
+
+def write(sock, msg):
+    print "Sending",msg #and send it
+    sock.sendall(msg)
 
 def setup_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #create IPv4, TCP socket
@@ -160,15 +156,30 @@ def main():
         for event in pygame.event.get():
             if event.type == KEYDOWN: #if the user depresses a key
                 if event.key == K_RETURN: #if the enter key is depressed (event.key == 13) 
-                    write(sock,user_message)
+                    user_message = str(user_message)
+                    parsed_message = parse(user_message)                
+                    if parsed_message.valid_msgtuple[0] == True: #if message is valid
+                        parsed_message.format_as_IRC() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
+                        write(sock,parsed_message.IRC_formatted_msg)
+                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+parsed_message.parsed_msg[2]+" "+parsed_message.parsed_msg[3]),FONTSIZE))
+                        user_message = "" #this line leaves a one-character artifact, not sure why
+                    if parsed_message.valid_msgtuple[0] == False:
+                        pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(parsed_message.valid_msgtuple[1]),FONTSIZE))
+                    #self.parsed_msg = (prefix, user_cmd, args, trailer)
                     #pdb.set_trace()
-                    pyg_textsurfaces.append(makenew_pyg_textsurface(user_message,FONTSIZE))
-                    user_message = '' #this line leaves a one-character artifact, not sure why
-
+                    event.unicode = None #will this fix the problem???    
                 if event.key == K_BACKSPACE:
                     user_message = user_message[:-1]
+                elif event.key == K_RETURN:
+                #this is outside the KEYDOWN loop because after the key is pressed,
+                #the event persists, and pollutes user_message with u'\r'. So if you HAVEN'T hit return, but event.key
+                #still equals return, we want to simply reset user_message instead
+                    #user_message = "" #this may be unneccessary
+                    print 'crisis averted!'
                 else:
                     user_message += event.unicode
+                    if user_message == u'\r':
+                        print "A-ha!!!! You've found the problem. user_message equals u'\r'"
         
         readable, writeable, error = select.select([sock], [sock], [sock], 0)
         
