@@ -28,8 +28,6 @@ CHANNEL = '#HACKERSCHOOL'
 NICK = 'testmatt'
 FONTSIZE = 24
 NUM_LINES_ON_SCREEN = 25
-
-
 IRC_CMDS = {'m':'PRIVMSG','n':'NICK', 'j':'JOIN','q':'QUIT','o':'NOTICE'}
 
 def print_dict():
@@ -50,34 +48,38 @@ class Message:
         self.valid_msgtuple = (None,"Message has not yet been parsed by parse_message")
         self.IRC_formatted_msg = None
     
-    def is_msg_in_expected_structure(self):
-        if len(self.original_msg.split(' ')) < 2:
-            self.valid_msgtuple = (False, "usage: /command argument trailer")
-        elif not IRC_CMDS.get(self.original_msg[1:].split(' ')[0],None): #returns None if user_cmd key not found in IRC_CMDS dict
-            self.valid_msgtuple = (False,"User command not recognized. Valid IRC commands include:",print_dict())
-        else:
-            self.valid_msgtuple = (True, None)
-
     def parse_msg(self): #returns ((prefix,command,args,trailer),(parseable_msg,why_unparseable)
-        if self.source == 'user' and self.valid_msgtuple[0]:
-            user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
-            if len(args_and_trailer.split(' ')) > 1:
-                args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
-            elif len(args_and_trailer.split(' ')) == 1:
-                args, trailer = args_and_trailer, '' #must be '', can't be None, bc later trailer is concatenated
-            args = args.strip()
-            self.parsed_msg = (None, user_cmd, args, trailer)
-    
+        if self.source == 'user':
+            if len(self.original_msg.split(' ')) < 2:
+                self.valid_msgtuple = (False, "usage: /command argument trailer")
+            elif not IRC_CMDS.get(self.original_msg.split(' ')[0],None): #returns None if command key not found in IRC_CMDS dict
+                self.valid_msgtuple = (False,"User command not recognized. Valid IRC commands include:",print_dict())
+            else:
+                self.valid_msgtuple = (True, None) #assume that if I haven't caught an error in the if stmts above, it's valid
+                command, args_and_trailer = self.original_msg.split(' ',1)
+                if len(args_and_trailer.split(' ')) > 1:
+                    args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
+                elif len(args_and_trailer.split(' ')) == 1:
+                    args, trailer = args_and_trailer, '' #must be '', can't be None, bc later trailer is concatenated
+                args = args.strip()
+                self.parsed_msg = ('', command, args, trailer) #get rid of this line - it's redundant w/ the ones that follow
+                self.valid_msgtuple = (True, None)
+                self.prefix = ''
+                self.command = command
+                self.args = args
+                self.trailer = trailer
+
+
         elif self.source == 'server':
             if self.original_msg[0] == ':': 
-                prefix, not_prefix = self.original_msg[1:].split(' ',1) #splits message into pre-space and post-space
+                prefix, not_prefix = self.original_msg[1:].split(' ',1) #splits message into pre first-space and post first-space
             elif self.original_msg[0] != ':': #this statement is redundantly explicit, for clarity
                 prefix, not_prefix = None, self.original_msg
             command_and_args, trailer = not_prefix.split(':',1)
-            print "original_msg: ", self.original_msg
-            print "parsed_msg: ", self.parsed_msg
-            print "\nParsed message:\n", self.parsed_msg #placeholder. eventually display properly formatted message
-            print "command and args\n",command_and_args,"\nend of command and args" #debug stmt
+            # print "original_msg: ", self.original_msg
+            # print "parsed_msg: ", self.parsed_msg
+            # print "\nParsed message:\n", self.parsed_msg #placeholder. eventually display properly formatted message
+            # print "command and args:\n",command_and_args,"\nend of command and args" #debug stmt
             if ' ' in command_and_args:
                 command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
                 args = args.rstrip() #remove trailing whitespace. Should args be a space-delimited string or a list?
@@ -86,32 +88,24 @@ class Message:
                 args = ''
             self.parsed_msg = (prefix, command, args, trailer)
             self.valid_msgtuple = (True, None)
+            self.prefix = prefix
+            self.command = command
+            self.args = args
+            self.trailer = trailer
         else:
            self.parsed_msg = None
-           #self.valid_msgtuple = (False, "Sorry, parse_msg couldn't handle the message")
+           self.valid_msgtuple = (False, "Sorry, parse_msg couldn't parse the message")
 
-    def format_as_IRC(self): #check message is valid prior to running
-        (prefix, user_cmd, args, trailer) = self.parsed_msg #factor this out of format_as_IRC; this part just separates
+    def add_IRC_msg_attr(self): #check message is valid prior to running
         #the message into its constituent parts (as defined by the IRC protocol)
-        if prefix:
-            self.IRC_formatted_msg = ":"+prefix+" "+IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
-        if not prefix:
-            self.IRC_formatted_msg = IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
-
+        if self.prefix:
+            self.IRC_formatted_msg = ":"+self.prefix+" "+IRC_CMDS[self.command]+" "+self.args+" :"+self.trailer+"\n" #the \n is necessary for the IRC server
+        if not self.prefix:
+            self.IRC_formatted_msg = IRC_CMDS[self.command]+" "+self.args+" :"+self.trailer+"\n" #the \n is necessary for the IRC server
 
 def read(sock): #listens for and prints out the received message
     while True:
         msg = sock.recv(1024)
-
-def parse(msg): #blocks on raw_msg, returns any msg from user
-    msgtuple = (msg,'user') #(message,source)
-    user_msg = Message(msgtuple)
-    user_msg.is_msg_in_expected_structure()
-    user_msg.parse_msg()
-    if user_msg.valid_msgtuple[0]: #if the message has been parsed successfully...
-        return user_msg #hope this returns a "Message" object, as I've defined it
-    else:
-        print user_msg.valid_msgtuple[1] #prints an error message
 
 def write(sock, msg):
     print "Sending",msg #and send it
@@ -132,7 +126,8 @@ def setup_sock():
 def main(): 
     # Create 'sock', a socket object
     pyg_textsurfaces = []
-    user_message = ""
+    unsent_string = "" #this is the object the user builds up before hitting 'return.'
+    # After user hits 'return', the unsent_string is converted into a Message_object
     server_message = ""
     sock = setup_sock()
 
@@ -146,37 +141,38 @@ def main():
     #rect2 = pygame.draw.rect(screen,(153,33,255),(0,0,10,10))
     #rect2.bottomleft = (0,90)
 
+    trueloopcounter = 0
     while True:
         for event in pygame.event.get():
             if event.type == KEYDOWN: #if the user depresses a key
                 if event.key == K_RETURN: #if the enter key is depressed (event.key == 13) 
-                    user_message = str(user_message) #not sure if this line is necessary
-                    parsed_message = parse(user_message)                
-                    if parsed_message.valid_msgtuple[0] == True: #if message is valid
-                        parsed_message.format_as_IRC() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
-                        write(sock,parsed_message.IRC_formatted_msg)
-                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+parsed_message.parsed_msg[2]+" "+parsed_message.parsed_msg[3]),FONTSIZE))
-                        user_message = "" #this line leaves a one-character artifact, not sure why
-                    if parsed_message.valid_msgtuple[0] == False:
-                        pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(parsed_message.valid_msgtuple[1]),FONTSIZE))
-                    event.unicode = None #will this fix the problem???    
+                    unsent_string = str(unsent_string) #not sure if this line is necessary
+                    user_message_object = Message((unsent_string,'user'))
+                    user_message_object.parse_msg()
+                    if user_message_object.valid_msgtuple[0] == True: #if message is valid
+                        user_message_object.add_IRC_msg_attr() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
+                        write(sock,user_message_object.IRC_formatted_msg)
+                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+user_message_object.parsed_msg[2]+" "+user_message_object.parsed_msg[3]),FONTSIZE))
+                        unsent_string = '' #this line leaves a one-character artifact, not sure why
+                    if user_message_object.valid_msgtuple[0] == False:
+                        pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(user_message_object.valid_msgtuple[1]),FONTSIZE))
                 elif event.key == K_BACKSPACE:
-                    user_message = user_message[:-1]
+                    unsent_string = unsent_string[:-1]
                 else:
-                    user_message += event.unicode
+                    unsent_string += event.unicode
 
         readable, writeable, error = select.select([sock], [sock], [sock], 0)
         
         screen.fill((0,0,0)) #puts in a black background, so that you only see the most recently drawn objects
         
-        unsent_user_message = makenew_pyg_textsurface(user_message,FONTSIZE)
+        unsent_user_message = makenew_pyg_textsurface(str(unsent_string),FONTSIZE) #coerce user_message to string earlier?
                 
         if readable:
             server_message = sock.recv(1024)
             server_message = Message((server_message,'server')) #makes server message string a Message object
             server_message.parse_msg()
             pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.parsed_msg[2]+": "+server_message.parsed_msg[3],FONTSIZE)) #just the new message
-
+            # this will need to be tweaked
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
         screen.blit(unsent_user_message,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
@@ -189,6 +185,8 @@ def main():
         screen.blit(unsent_user_message,(0,540))
 
         pygame.display.flip() #updates display
+        print 'TICK '+str(trueloopcounter)
+        trueloopcounter += 1
 
 if __name__ == '__main__':
     pygame.init()
