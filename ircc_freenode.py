@@ -27,6 +27,7 @@ PORT = 6667
 CHANNEL = '#HACKERSCHOOL'
 NICK = 'testmatt'
 FONTSIZE = 24
+NUM_LINES_ON_SCREEN = 25
 
 
 IRC_CMDS = {'m':'PRIVMSG','n':'NICK', 'j':'JOIN','q':'QUIT','o':'NOTICE'}
@@ -43,7 +44,7 @@ def makenew_pyg_textsurface(msg,fontsize):
 
 class Message:
     def __init__(self,(msg,source)): #remember init takes arguments, NOT the class
-        self.original_msg = '/'+msg #pygame may not recognize / so for now add it in manually
+        self.original_msg = msg #pygame may not recognize / so for now add it in manually if you have to using "/"+msg
         self.source = source
         self.parsed_msg = None
         self.valid_msgtuple = (None,"Message has not yet been parsed by parse_message")
@@ -75,12 +76,16 @@ class Message:
             elif self.original_msg[0] != ':': #this statement is redundantly explicit, for clarity
                 prefix, not_prefix = None, self.original_msg
             command_and_args, trailer = not_prefix.split(':',1)
-            print "original_msg: ",msg_object.original_msg
-            print "parsed_msg: ",msg_object.parsed_msg
-            print "\nParsed message:\n", msg_object.parsed_msg #placeholder. eventually display properly formatted message
+            print "original_msg: ", self.original_msg
+            print "parsed_msg: ", self.parsed_msg
+            print "\nParsed message:\n", self.parsed_msg #placeholder. eventually display properly formatted message
             print "command and args\n",command_and_args,"\nend of command and args" #debug stmt
-            command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
-            args = args.rstrip() #remove trailing whitespace. Should args be a space-delimited string or a list?
+            if ' ' in command_and_args:
+                command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
+                args = args.rstrip() #remove trailing whitespace. Should args be a space-delimited string or a list?
+            else:
+                command = command_and_args
+                args = ''
             self.parsed_msg = (prefix, command, args, trailer)
             self.valid_msgtuple = (True, None)
         else:
@@ -88,7 +93,8 @@ class Message:
            #self.valid_msgtuple = (False, "Sorry, parse_msg couldn't handle the message")
 
     def format_as_IRC(self): #check message is valid prior to running
-        (prefix, user_cmd, args, trailer) = self.parsed_msg
+        (prefix, user_cmd, args, trailer) = self.parsed_msg #factor this out of format_as_IRC; this part just separates
+        #the message into its constituent parts (as defined by the IRC protocol)
         if prefix:
             self.IRC_formatted_msg = ":"+prefix+" "+IRC_CMDS[user_cmd]+" "+args+" :"+trailer+"\n" #the \n is necessary for the IRC server
         if not prefix:
@@ -156,7 +162,7 @@ def main():
         for event in pygame.event.get():
             if event.type == KEYDOWN: #if the user depresses a key
                 if event.key == K_RETURN: #if the enter key is depressed (event.key == 13) 
-                    user_message = str(user_message)
+                    user_message = str(user_message) #not sure if this line is necessary
                     parsed_message = parse(user_message)                
                     if parsed_message.valid_msgtuple[0] == True: #if message is valid
                         parsed_message.format_as_IRC() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
@@ -165,16 +171,12 @@ def main():
                         user_message = "" #this line leaves a one-character artifact, not sure why
                     if parsed_message.valid_msgtuple[0] == False:
                         pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(parsed_message.valid_msgtuple[1]),FONTSIZE))
-                    #self.parsed_msg = (prefix, user_cmd, args, trailer)
-                    #pdb.set_trace()
                     event.unicode = None #will this fix the problem???    
                 elif event.key == K_BACKSPACE:
                     user_message = user_message[:-1]
                 else:
                     user_message += event.unicode
-                    if user_message == u'\r':
-                        print "A-ha!!!! You've found the problem. user_message equals u'\r'"
-        
+
         readable, writeable, error = select.select([sock], [sock], [sock], 0)
         
         screen.fill((0,0,0)) #puts in a black background, so that you only see the most recently drawn objects
@@ -183,14 +185,16 @@ def main():
                 
         if readable:
             server_message = sock.recv(1024)
-            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message,FONTSIZE))
+            server_message = Message((server_message,'server')) #makes server message string a Message object
+            server_message.parse_msg()
+            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.parsed_msg[2]+": "+server_message.parsed_msg[3],FONTSIZE)) #just the new message
 
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
         screen.blit(unsent_user_message,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
         
         offset = 10
-        for block in pyg_textsurfaces[-10:]:
+        for block in pyg_textsurfaces[-NUM_LINES_ON_SCREEN:]:
             offset += FONTSIZE
             screen.blit(block,(0,offset))
 
@@ -201,7 +205,3 @@ def main():
 if __name__ == '__main__':
     pygame.init()
     main()
-    # import inputbox2 as ibox
-    # screen = ibox.pygame.display.set_mode((1080,240))
-    # if ibox.ask(screen, "input>  "):
-    #     print "'%s' was entered." % ibox.ask(screen, "input>  ")
