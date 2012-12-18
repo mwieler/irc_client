@@ -44,7 +44,6 @@ class Message:
     def __init__(self,(msg,source)): #remember init takes arguments, NOT the class
         self.original_msg = msg #pygame may not recognize / so for now add it in manually if you have to using "/"+msg
         self.source = source
-        self.parsed_msg = None
         self.valid_msgtuple = (None,"Message has not yet been parsed by parse_message")
         self.IRC_formatted_msg = None
     
@@ -62,12 +61,12 @@ class Message:
                 elif len(args_and_trailer.split(' ')) == 1:
                     args, trailer = args_and_trailer, '' #must be '', can't be None, bc later trailer is concatenated
                 args = args.strip()
-                self.parsed_msg = ('', command, args, trailer) #get rid of this line - it's redundant w/ the ones that follow
                 self.valid_msgtuple = (True, None)
                 self.prefix = ''
                 self.command = command
                 self.args = args
                 self.trailer = trailer
+
 
 
         elif self.source == 'server':
@@ -76,24 +75,18 @@ class Message:
             elif self.original_msg[0] != ':': #this statement is redundantly explicit, for clarity
                 prefix, not_prefix = None, self.original_msg
             command_and_args, trailer = not_prefix.split(':',1)
-            # print "original_msg: ", self.original_msg
-            # print "parsed_msg: ", self.parsed_msg
-            # print "\nParsed message:\n", self.parsed_msg #placeholder. eventually display properly formatted message
-            # print "command and args:\n",command_and_args,"\nend of command and args" #debug stmt
             if ' ' in command_and_args:
                 command, args = command_and_args.split(' ',1) #returns '' for args if no args exist
                 args = args.rstrip() #remove trailing whitespace. Should args be a space-delimited string or a list?
             else:
                 command = command_and_args
                 args = ''
-            self.parsed_msg = (prefix, command, args, trailer)
             self.valid_msgtuple = (True, None)
             self.prefix = prefix
             self.command = command
             self.args = args
             self.trailer = trailer
         else:
-           self.parsed_msg = None
            self.valid_msgtuple = (False, "Sorry, parse_msg couldn't parse the message")
 
     def add_IRC_msg_attr(self): #check message is valid prior to running
@@ -152,7 +145,7 @@ def main():
                     if user_message_object.valid_msgtuple[0] == True: #if message is valid
                         user_message_object.add_IRC_msg_attr() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
                         write(sock,user_message_object.IRC_formatted_msg)
-                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+user_message_object.parsed_msg[2]+" "+user_message_object.parsed_msg[3]),FONTSIZE))
+                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+user_message_object.args+" "+user_message_object.trailer),FONTSIZE))
                         unsent_string = '' #this line leaves a one-character artifact, not sure why
                     if user_message_object.valid_msgtuple[0] == False:
                         pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(user_message_object.valid_msgtuple[1]),FONTSIZE))
@@ -171,7 +164,7 @@ def main():
             server_message = sock.recv(1024)
             server_message = Message((server_message,'server')) #makes server message string a Message object
             server_message.parse_msg()
-            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.parsed_msg[0]+": "+server_message.parsed_msg[3],FONTSIZE)) #just the new message
+            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.command+": "+server_message.args+" "+server_message.trailer,FONTSIZE)) #just the new message
             # this will need to be tweaked
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
