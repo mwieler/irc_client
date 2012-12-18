@@ -51,9 +51,7 @@ class Message:
         self.IRC_formatted_msg = None
     
     def is_msg_in_expected_structure(self):
-        if self.original_msg[0] != '/':
-            self.valid_msgtuple = (False, "commands must begin with a '/'")
-        elif len(self.original_msg.split(' ')) < 2:
+        if len(self.original_msg.split(' ')) < 2:
             self.valid_msgtuple = (False, "usage: /command argument trailer")
         elif not IRC_CMDS.get(self.original_msg[1:].split(' ')[0],None): #returns None if user_cmd key not found in IRC_CMDS dict
             self.valid_msgtuple = (False,"User command not recognized. Valid IRC commands include:",print_dict())
@@ -61,7 +59,7 @@ class Message:
             self.valid_msgtuple = (True, None)
 
     def parse_msg(self): #returns ((prefix,command,args,trailer),(parseable_msg,why_unparseable)
-        if self.original_msg[0] == '/' and self.source == 'user' and self.valid_msgtuple[0]: #/ indicates a user command
+        if self.source == 'user' and self.valid_msgtuple[0]:
             user_cmd, args_and_trailer = self.original_msg[1:].split(' ',1)
             if len(args_and_trailer.split(' ')) > 1:
                 args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
@@ -104,16 +102,6 @@ class Message:
 def read(sock): #listens for and prints out the received message
     while True:
         msg = sock.recv(1024)
-        #msg_object = Message((msg,'server'))
-        print msg #for now, all the client does with servers messages is print them: eventually, it should make sense of them, too, and pong the server
-        #msg_object.parse_msg() #we should be able to combine these two lines, or automatically call them
-        #msg_object.format_as_IRC() #we should be able to combine these two lines, or automatically call them
-        # parseable_msg, why_unparseable = msg_object.valid_msgtuple
-        # if parseable_msg:
-        #     if msg_object.parsed_msg[1] == 'PING': #clean up - indexing refers to IRC command. make this clear
-        #         sock.sendall('PONG '+trailer)
-        # if not parseable_msg:
-        #     print msg_object.original_msg, "was not parseable. Reason:\n", why_unparseable
 
 def parse(msg): #blocks on raw_msg, returns any msg from user
     msgtuple = (msg,'user') #(message,source)
