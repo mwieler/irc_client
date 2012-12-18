@@ -171,7 +171,7 @@ def main():
             server_message = sock.recv(1024)
             server_message = Message((server_message,'server')) #makes server message string a Message object
             server_message.parse_msg()
-            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.parsed_msg[0:2]+": "+server_message.parsed_msg[3],FONTSIZE)) #just the new message
+            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.parsed_msg[0]+": "+server_message.parsed_msg[3],FONTSIZE)) #just the new message
             # this will need to be tweaked
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
