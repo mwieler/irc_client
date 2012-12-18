@@ -79,6 +79,8 @@ class Message:
             else:
                 command = command_and_args
                 args = ''
+            trailer = trailer.replace('\r','')
+            trailer = trailer.replace('\n','')
             self.valid_msgtuple = (True, None)
             self.prefix = prefix
             self.command = command
