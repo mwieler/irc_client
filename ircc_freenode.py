@@ -168,14 +168,8 @@ def main():
                     #self.parsed_msg = (prefix, user_cmd, args, trailer)
                     #pdb.set_trace()
                     event.unicode = None #will this fix the problem???    
-                if event.key == K_BACKSPACE:
+                elif event.key == K_BACKSPACE:
                     user_message = user_message[:-1]
-                elif event.key == K_RETURN:
-                #this is outside the KEYDOWN loop because after the key is pressed,
-                #the event persists, and pollutes user_message with u'\r'. So if you HAVEN'T hit return, but event.key
-                #still equals return, we want to simply reset user_message instead
-                    #user_message = "" #this may be unneccessary
-                    print 'crisis averted!'
                 else:
                     user_message += event.unicode
                     if user_message == u'\r':
