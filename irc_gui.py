@@ -27,7 +27,7 @@ PORT = 6667
 CHANNEL = '#HACKERSCHOOL'
 NICK = 'testmatt'
 FONTSIZE = 24
-NUM_LINES_ON_SCREEN = 25
+NUM_LINES_ON_SCREEN = 21
 IRC_CMDS = {'m':'PRIVMSG','n':'NICK', 'j':'JOIN','q':'QUIT','o':'NOTICE'}
 
 def print_dict():
@@ -81,7 +81,6 @@ class Message:
                 command = command_and_args
                 args = ''
             #this is where you clean up server messages
-            pdb.set_trace()
             if prefix: #kind of a hack. Resolve the prefix/no prefix issue
                 if '!' in prefix: #if there's an exclamation point in the prefix...
                     prefix = prefix[:prefix.index('!')] #truncate it beginning with the exclamation point
