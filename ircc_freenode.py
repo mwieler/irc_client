@@ -60,6 +60,7 @@ class Message:
                     args, trailer = args_and_trailer.split(' ',1) #for now, only one-argument functions can be handled
                 elif len(args_and_trailer.split(' ')) == 1:
                     args, trailer = args_and_trailer, '' #must be '', can't be None, bc later trailer is concatenated
+                #this is wher eyou clean up user messages
                 args = args.strip()
                 self.valid_msgtuple = (True, None)
                 self.prefix = ''
@@ -79,6 +80,11 @@ class Message:
             else:
                 command = command_and_args
                 args = ''
+            #this is where you clean up server messages
+            pdb.set_trace()
+            if prefix: #kind of a hack. Resolve the prefix/no prefix issue
+                if '!' in prefix: #if there's an exclamation point in the prefix...
+                    prefix = prefix[:prefix.index('!')] #truncate it beginning with the exclamation point
             trailer = trailer.replace('\r','')
             trailer = trailer.replace('\n','')
             self.valid_msgtuple = (True, None)
@@ -145,7 +151,7 @@ def main():
                     if user_message_object.valid_msgtuple[0] == True: #if message is valid
                         user_message_object.add_IRC_msg_attr() #add a .IRC_formatted_msg attribute, the message formatted as IRC message....
                         write(sock,user_message_object.IRC_formatted_msg)
-                        pyg_textsurfaces.append(makenew_pyg_textsurface(str(NICK+": "+user_message_object.args+" "+user_message_object.trailer),FONTSIZE))
+                        pyg_textsurfaces.append(makenew_pyg_textsurface(str("(to "+user_message_object.args+"): "+user_message_object.trailer),FONTSIZE))
                         unsent_string = '' #this line leaves a one-character artifact, not sure why
                     if user_message_object.valid_msgtuple[0] == False:
                         pyg_textsurfaces.append(makenew_pyg_textsurface('Error: '+str(user_message_object.valid_msgtuple[1]),FONTSIZE))
@@ -164,7 +170,10 @@ def main():
             server_message = sock.recv(1024)
             server_message = Message((server_message,'server')) #makes server message string a Message object
             server_message.parse_msg()
-            pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.command+": "+server_message.args+" "+server_message.trailer,FONTSIZE)) #just the new message
+            try: #try to print the prefix & trailer
+                pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.prefix+": "+server_message.trailer,FONTSIZE)) #just the new message
+            except: #if that doesn't work, print just the trailer
+                pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.trailer,FONTSIZE))
             # this will need to be tweaked
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
 
