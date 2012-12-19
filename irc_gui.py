@@ -175,15 +175,13 @@ def main():
                 pyg_textsurfaces.append(makenew_pyg_textsurface(server_message.trailer,FONTSIZE))
             # this will need to be tweaked
         rect = pygame.draw.rect(screen,(255,155,55),rect) #this re-draws the rectangle (now that it's been moved)
-
-        screen.blit(unsent_user_message,(0,540)) #screen has method blit, which can put, in this case, textsurface onto rect
         
         offset = 10
         for block in pyg_textsurfaces[-NUM_LINES_ON_SCREEN:]:
             offset += FONTSIZE
             screen.blit(block,(0,offset))
 
-        screen.blit(unsent_user_message,(0,540))
+        screen.blit(unsent_user_message,(0,550))
 
         pygame.display.flip() #updates display
         print 'TICK '+str(trueloopcounter)
